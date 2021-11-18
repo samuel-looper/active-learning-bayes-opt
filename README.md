@@ -4,3 +4,13 @@ Bayesian Optimization using active learning to query black box functions with un
 ## Key Files
 * **solution.py**: Includes definition of Bayesian Optimizer class with functions to calculate next best point from acquisition, query function at next point, and build Gaussian Process model. Also includes pre-defined evaluation functions. 
 * **utils.py**: Includes functions to validate inputs and check function domains. 
+
+## To Do
+* GP Model
+* Acquisition function
+* Optimization of acquisition function
+* Generating next recommended query
+* Querying function and building model
+* Full Optimization loop
+* Better handling of function constraint
+* Improve model 
