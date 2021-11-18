@@ -4,6 +4,9 @@ import typing
 import logging
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import *
+from scipy.stats import norm
 import matplotlib.pyplot as plt
 
 EXTENDED_EVALUATION = False
@@ -16,13 +19,25 @@ EXTENDED_EVALUATION = False
 class BO_algo(object):
     def __init__(self):
         """Initializes the algorithm with a parameter configuration. """
+        # HYPERPARAMS:
+        self.beta = 1
+        self.kernelf = RBF(length_scale=1.5) + ConstantKernel(1.5)
+        self.kernelc = RBF(length_scale=3.5) + ConstantKernel(2)
 
         # TODO: enter your code here
         self.previous_points = []
-        # IMPORTANT: DO NOT REMOVE THOSE ATTRIBUTES AND USE sklearn.gaussian_process.GaussianProcessRegressor instances!
-        # Otherwise, the extended evaluation will break.
-        self.constraint_model = None  # TODO : GP model for the constraint function
-        self.objective_model = None  # TODO : GP model for your acquisition function
+        self.rng = np.random.default_rng(seed=0)
+
+        self.constraint_model = GaussianProcessRegressor(
+            kernel=self.kernelc,
+            alpha=1e-10,
+            optimizer=None
+        )
+        self.objective_model = GaussianProcessRegressor(
+            kernel=self.kernelf,
+            alpha=1e-10,
+            optimizer=None
+        )
 
     def next_recommendation(self) -> np.ndarray:
         """
@@ -34,8 +49,11 @@ class BO_algo(object):
             1 x domain.shape[0] array containing the next point to evaluate
         """
 
-        # TODO: enter your code here
-        # In implementing this function, you may use optimize_acquisition_function() defined below.
+        # Not sure what we need to add here???
+        if len(self.previous_points) < 5:
+            return np.random.rand(1, 2)
+        else:
+            return self.optimize_acquisition_function()
 
     def optimize_acquisition_function(self) -> np.ndarray:  # DON'T MODIFY THIS FUNCTION
         """
@@ -48,7 +66,9 @@ class BO_algo(object):
         """
 
         def objective(x: np.array):
-            return - self.acquisition_function(x)
+            # This sign used to be negative but is this a mistake? We're trying to minimize the acquisition function
+            # and fmin_l_bfgs_b is also a minimization algorithm
+            return -self.acquisition_function(x)
 
         f_values = []
         x_values = []
@@ -81,9 +101,18 @@ class BO_algo(object):
         af_value: float
             value of the acquisition function at x
         """
+        expanded_x = np.expand_dims(x, axis=0)
+        constraint_mean, constraint_std = self.constraint_model.predict(expanded_x, return_std=True)
+        objective_mean, objective_std = self.objective_model.predict(expanded_x, return_std=True)
 
-        # TODO: enter your code here
-        raise NotImplementedError
+        # probability x < 0 according to constraint model
+        p_constraint = norm.cdf(0, loc=constraint_mean, scale=constraint_std)
+
+        # This is equivalent to returning p * (mean - beta * stddev) + (1-p) * (mean + beta * stddev)
+        # We're trying to return the expected value of the acquisition function that corresponds to the regret function
+        # outlined in the assignment, whereby if c(x) > 0, it is equivalent to f(x) = fmax + fmin
+
+        return np.asarray((objective_mean + (1 - 2 * p_constraint) * self.beta * objective_std))
 
     def add_data_point(self, x: np.ndarray, z: float, c: float):
         """
@@ -101,8 +130,12 @@ class BO_algo(object):
 
         assert x.shape == (1, 2)
         self.previous_points.append([float(x[:, 0]), float(x[:, 1]), float(z), float(c)])
-        # TODO: enter your code here
-        raise NotImplementedError
+
+        x_train = np.asarray(self.previous_points)[:, :2]
+        z_train = np.asarray(self.previous_points)[:, 2]
+        c_train = np.asarray(self.previous_points)[:, 3]
+        self.objective_model.fit(x_train, z_train)
+        self.constraint_model.fit(x_train, c_train)
 
     def get_solution(self) -> np.ndarray:
         """
@@ -114,8 +147,8 @@ class BO_algo(object):
             1 x domain.shape[0] array containing the optimal solution of the problem
         """
 
-        # TODO: enter your code here
-        raise NotImplementedError
+        # Not sure what else needs to be done here???
+        return self.optimize_acquisition_function()
 
 
 """ 
@@ -284,7 +317,7 @@ def train_on_toy(agent, iteration):
         regret = (f(solution) - f_opt) / f_max
 
     print(f'Optimal value: {f_opt}\nProposed solution {solution}\nSolution value '
-          f'{f(solution)}\nRegret{regret}')
+          f'{f(solution)}\nRegret: {regret}')
     return agent
 
 
