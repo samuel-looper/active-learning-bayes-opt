@@ -6,11 +6,12 @@ Bayesian Optimization using active learning to query black box functions with un
 * **utils.py**: Includes functions to validate inputs and check function domains. 
 
 ## To Do
-* GP Model
-* Acquisition function
-* Optimization of acquisition function
-* Generating next recommended query
-* Querying function and building model
-* Full Optimization loop
-* Better handling of function constraint
-* Improve model 
+* ~~GP Model~~
+* ~~Acquisition function~~
+* ~~Optimization of acquisition function~~
+* ~~Generating next recommended query~~
+* ~~Querying function and building model~~
+* ~~Full Optimization loop~~
+* ~~Better handling of function constraint~~
+* Improve model
+  * Better exploration of the function space is possible
